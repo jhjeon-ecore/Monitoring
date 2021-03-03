@@ -221,6 +221,7 @@ Expression : {ztest1:system.cpu.load.avg(180)}>1
 # yum install net-snmp net-snmp-utils  
 # vi /etc/snmp/snmpd.conf
 
+    (38번째줄)
     # First, map the community name "public" into a "security name"
 
     #       sec.name  source          community
@@ -256,13 +257,18 @@ Expression : {ztest1:system.cpu.load.avg(180)}>1
     SNMPv2-MIB::sysName.0 = STRING: ztest2
     SNMPv2-MIB::sysLocation.0 = STRING: Unknown (edit /etc/snmp/snmpd.conf)
 ```
-- 자빅스에서 snmp 호스트 생성 및 snmp 아이템 폴링  
+- 자빅스에서 snmp 호스트 생성  
     - 자빅스 웹페이지 Configuration > Host 에서 Create host 클릭  
-        Host name : ztest2  
-        Groups - New group : SNMP devices (임의)  
-        SNMP interfaces에 Add 클릭 후 ztest2의 ip 입력  
-        -> 하단 Add 클릭으로 호스트 생성 (ztest3, ztest4도 동일하게 ip바꿔서 입력)
-    - 새로 만든 호스트 옆 item 클릭, Create item -> 다음 내용 입력 후 하단 Add클릭  
+        - Host name : ztest2_snmp (snmp와 agent를 구별하기 위해 임의로 설정함)  
+        - Groups - New group : SNMP devices (임의)  
+        - Agent interfaces는 오른쪽 Remove로 삭제
+        - SNMP interfaces에 Add 클릭 후 ztest2의 ip 입력  
+        - 상단 Host 옆 Templates 클릭 - Link new templates의 Select 클릭 -> Template SNMP OS Linux 선택 후 Add 클릭  
+        - 상단 Templates 옆 Macro 클릭 - Macro에 {$SNMP_COMMUNITY} 입력, Value에 zabbix 입력
+        - 하단 Add 클릭으로 호스트 생성
+        - 생성한 ztest2_snmp클릭 후 하단에 Full clone 클릭하여 Hostname과 SNMP interfaces만 변경하여 ztest3_snmp, ztest4_snmp 생성
+    - 트래픽 아이템 만들어보기(생략가능)   
+        새로 만든 호스트 옆 item 클릭, Create item -> 다음 내용 입력 후 하단 Add클릭  
         Name : Outgoing traffic on interface $1    
         Type : SNMPv2 agent   
         Key : ifOutOctets[ens192]  
@@ -271,6 +277,7 @@ Expression : {ztest1:system.cpu.load.avg(180)}>1
         Units : Bps  
         Store value : Delta (speed per second)  
         -> Monitering > Lastest data에서 트래픽 정보 표시되면 성공  
+    - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
 ---
 ## 3. zabbix-agent 설치 및 설정, 수집, 비주얼화
 - ztest2~4에 zabbix-agent 설치
@@ -301,4 +308,13 @@ Hostname=ztest1      ->자신의 hostname 입력, 147번째 줄
 # systemctl restart zabbix-agent
 ```
 ---
+- 자빅스에서 agent 호스트 생성  
+    - 자빅스 웹페이지 Configuration > Host 에서 Create host 클릭  
+        - Host name : ztest2 (snmp와 agent를 구별하기 위해 임의로 설정함)  
+        - Groups - In groups : Linux servers (임의)  
+        - Agent interfaces : ztest2의 ip 입력   
+        - Agent interfaces에 Add 클릭 후 ztest2의 ip 입력   
+        - 상단 Host 옆 Templates 클릭 - Link new templates의 Select 클릭 -> Template OS Linux 선택 후 Add 클릭   
+        - 하단 Add 클릭으로 호스트 생성
+        - 생성한 ztest2_snmp클릭 후 하단에 Full clone 클릭하여 Hostname과 Agent interfaces만 변경하여 ztest3, ztest4 생성
 ## 4. IPMI 설치 및 설정, 수집, 비주얼화
