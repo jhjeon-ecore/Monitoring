@@ -278,7 +278,33 @@ Expression : {ztest1:system.cpu.load.avg(180)}>1
         Store value : Delta (speed per second)  
         -> Monitering > Lastest data에서 트래픽 정보 표시되면 성공  
     - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
----
+---   
+## 2-1. Network 스위치 모니터링(SNMP)
+### snmp 설정
+- 스위치 연결, 원격 접속 후 (스위치에서 진행)
+```
+# configure terminal
+(config)# snmp-server community v2c zabbix ro
+(config)# exit
+# copy running-config startup-config
+```
+- 다른 리눅스 서버에서 스위치 연결 확인
+```linux
+# snmpstatus -v 2c -c zabbix (switch ip)
+# snmpwalk -v 2c -c zabbix (switch ip)
+```
+    
+### zabbix-server -> network 스위치 수집   
+- 자빅스에서 snmp 호스트 생성  
+    - 자빅스 웹페이지 Configuration > Host 에서 Create host 클릭  
+        - Host name : test_switch (임의로 설정함)  
+        - Groups - In group : SNMP devices  
+        - Agent interfaces는 오른쪽 Remove로 삭제
+        - SNMP interfaces에 Add 클릭 후 스위치의 ip 입력  
+        - 상단 Host 옆 Templates 클릭 - Link new templates의 Select 클릭 -> Template SNMP Device 선택 후 Add 클릭  
+        - 상단 Templates 옆 Macro 클릭 - Macro에 {$SNMP_COMMUNITY} 입력, Value에 zabbix 입력
+        - 하단 Add 클릭으로 호스트 생성
+       
 ## 3. zabbix-agent 설치 및 설정, 수집, 비주얼화
 - ztest2~4에 zabbix-agent 설치
 ```linux
@@ -317,4 +343,33 @@ Hostname=ztest1      ->자신의 hostname 입력, 147번째 줄
         - 상단 Host 옆 Templates 클릭 - Link new templates의 Select 클릭 -> Template OS Linux 선택 후 Add 클릭   
         - 하단 Add 클릭으로 호스트 생성
         - 생성한 ztest2_snmp클릭 후 하단에 Full clone 클릭하여 Hostname과 Agent interfaces만 변경하여 ztest3, ztest4 생성
-## 4. IPMI 설치 및 설정, 수집, 비주얼화
+    - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
+## 4. IPMI 설치 및 설정, 수집, 비주얼화   
+
+   ---
+## 추가.   
+> 부하발생 명령어 stress 이용   
+- 설치 방법(yum 설치)
+    ```linux
+    # yum install epel-release
+    # yum install stress
+    ```
+- CPU 부하   
+stress -c (코어 수)   
+예시)
+    ```linux
+    # stress -c 5 
+    ```
+- Memory 부하   
+stress --vm (프로세스 수) --vm-bytes (크기)   
+예시)   
+    ```linux
+    # stress --vm 3 --vm-bytes 1024m --timeout 60s   
+    ```
+- HDD 부하   
+stress --hdd (하드 수) -hdd-bytes (크기)   
+예시)   
+    ```linux
+    # stress --hdd 3 --hdd-bytes 1024m --timeout 60s
+    ```
+
