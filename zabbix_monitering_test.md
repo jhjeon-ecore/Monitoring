@@ -9,6 +9,7 @@
 192.168.50.67 ztest2 -> 모니터링 대상 서버 (zabbix-agent 설치)  
 192.168.50.68 ztest3 -> 모니터링 대상 서버 (zabbix-agent 설치)  
 192.168.50.69 ztest4 -> 모니터링 대상 서버 (zabbix-agent 설치)  
+- 필수 사항 : /etc/hosts에 각 서버 정보 저장
 ---
 
 ## 1. Zabbix-server 설치(3.x-LTS 버전)
@@ -137,7 +138,7 @@ Bye
 > 1234는 DBPassword에 설정한 비밀번호와 동일하게 입력  
 > 생성된 db에 자빅스 스키마와 초기 데이터를 import
 ```linux
-# zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p zabbix
+# zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -u zabbix -p zabbix
 ```
 ### 실행
 자빅스 실행할 계정 생성 및 패키지 실행
@@ -200,7 +201,7 @@ Language를 English(en_US)로 수정, Messaging탭에서 Frontend messaging 옵�
 1. 우측 상단 Group에 Linux servers 선택, ztest1 호스트 옆 items 클릭
 2. 우측 상단 Create item 클릭  
 Name : CPU load  
-Key : system.cpu.load
+Key : system.cpu.load   
 Type of information : Numeric(float)
 3. Add 클릭
 4. Monitering > Latest data에 Hosts를 ztest1로 선택하고 Filter 클릭하면 CPU load 아이템 확인 가능
