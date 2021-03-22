@@ -345,7 +345,88 @@ Hostname=ztest1      ->자신의 hostname 입력, 147번째 줄
         - 생성한 ztest2_snmp클릭 후 하단에 Full clone 클릭하여 Hostname과 Agent interfaces만 변경하여 ztest3, ztest4 생성
     - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
 ## 4. IPMI 설치 및 설정, 수집, 비주얼화   
+> 주어진 IPMI 정보(ID:root/PW:calvin)   
+192.168.1.222   svr01-m   
+192.168.1.223   svr02-m   
+192.168.1.224   svr03-m   
+192.168.1.225   svr04-m   
+- IPMI 모니터링 준비 : IPMI 폴러가 시작되도록 설정   
+```linux
+# vi /etc/zabbix/zabbix_server.conf
+StartIPMIPollers=0 (147번째 줄, 주석 제거 후 3으로 값 변경)
 
+# systemctl restart zabbix-server
+```
+- IPMI 아이템 설정   
+```linux
+# yum install ipmitool
+# ipmitool -U root -H 192.168.1.222 -I lanplus -L user sdr -P calvin
+[root@ztest1 ~]# ipmitool -U root -H 192.168.1.222 -I lanplus -L user sensor get "Inlet Temp" -P calvin
+Locating sensor record...
+Sensor ID              : Inlet Temp (0x5)
+ Entity ID             : 7.1
+ Sensor Type (Threshold)  : Temperature
+ Sensor Reading        : 20 (+/- 1) degrees C
+ Status                : ok
+ Lower Non-Recoverable : na
+ Lower Critical        : -7.000
+ Lower Non-Critical    : 3.000
+ Upper Non-Critical    : 28.000
+ Upper Critical        : 32.000
+ Upper Non-Recoverable : na
+ Positive Hysteresis   : 2.000
+ Negative Hysteresis   : 2.000
+ Assertion Events      : 
+ Assertions Enabled    : lnc- lcr- unc+ ucr+ 
+ Deassertions Enabled  : lnc- lcr- unc+ ucr+
+```
+> U:username, H:IPMI host의 ip입력, P:IPMI 설정에서 설정한 암호 입력   
+- IPMI 모니터링   
+    - 자빅스 서버에서 IPMITOOL 패키지 설치 및 zabbix_server.conf파일 편집   
+    ```linux
+    # rpm -qa ipmitool   
+    ipmitool-1.8.18-9.el7_7.x86_64
+    # vi /etc/zabbix/zabbix_server.conf  
+      ### Option: StartIPMIPollers
+      #       Number of pre-forked instances of IPMI pollers.
+      #
+      # Mandatory: no
+      # Range: 0-1000
+      # Default:
+      StartIPMIPollers=5            //147번째 줄
+    # systemctl restart zabbix-server
+    ```
+    - 자빅스 서버에서 ipmi 센서 목록 가져오기(ipmi ip입력)
+    ```linux
+    # ipmitool -I lanplus -H 192.168.1.222 -U root -P calvin sensor
+    # ipmitool -I lanplus -H 192.168.1.223 -U root -P calvin sensor
+    # ipmitool -I lanplus -H 192.168.1.224 -U root -P calvin sensor
+    # ipmitool -I lanplus -H 192.168.1.225 -U root -P calvin sensor
+    ```
+    - 자빅스 웹페이지 Configuration > Host 에서 Create host 클릭  
+        - Host name : IPMI host  
+        - Visible name : svr01-m(다른 IPMI host와 구별 위해)   
+        - Groups - In groups : Linux servers (임의)  
+        - Agent interfaces : Remove버튼으로 삭제   
+        - IPMI interfaces에 Add 클릭 후 IPMI host의 ip 입력      
+        - 상단 Host 옆 Templates 클릭 - Link new templates 오른쪽 Select 클릭 -> Template IPMI Intel SR1630 클릭 후 하단 Select 클릭 -> 하단 파란색 Add 클릭   
+        - 상단 Host 옆옆 IPMI 클릭 - Username과 Password에 IPMI host의 정보 기입 (root/calvin)
+        - 하단 Add 클릭으로 host 생성  
+    - Inlet Temp 아이템 생성   
+        - svr01-m의 Applications 클릭 -> Create application 클릭 -> Name : IPMI 입력 후 Add -> svr01-m의 Items 클릭 -> Create item 클릭 -> 다음과 같이 입력 후 하단의 Add 클릭 
+        ```    
+            Name : Temperature   
+            Type : IPMI agent   
+            Key : techexpert.ipmi.temp   
+            IPMI sensor : Inlet Temp   
+            Type of information : Numeric (float)   
+            Units : degrees C   
+            Update interval (in sec) : 30   
+            Applications : IPMI
+        ```
+    - Inlet Temp 그래프 생성   
+        - svr01-m의 Graphs 클릭 -> Create Graph 클릭 -> Name : Inlet Temp 입력 -> 하단 Items에 위에서 만든 아이템(Temperature) 선택 후 Select -> 하단의 Add 클릭
+    - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
    ---
 ## 추가.   
 > 부하발생 명령어 stress 이용   
