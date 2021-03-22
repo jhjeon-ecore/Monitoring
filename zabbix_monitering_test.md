@@ -429,7 +429,7 @@ Sensor ID              : Inlet Temp (0x5)
         - svr01-m의 Graphs 클릭 -> Create Graph 클릭 -> Name : Inlet Temp 입력 -> 하단 Items에 위에서 만든 아이템(Temperature) 선택 후 Select -> 하단의 Add 클릭
     - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
    ---
-## 추가.   
+## 추가-1   
 > 부하발생 명령어 stress 이용   
 - 설치 방법(yum 설치)
     ```linux
@@ -438,20 +438,33 @@ Sensor ID              : Inlet Temp (0x5)
     ```
 - CPU 부하   
 stress -c (코어 수)   
-예시)
+예시) 코어 5개에 부하   
     ```linux
     # stress -c 5 
     ```
 - Memory 부하   
 stress --vm (프로세스 수) --vm-bytes (크기)   
-예시)   
+예시) 2G만큼씩 부하를 1개의 워커로 수행   
     ```linux
-    # stress --vm 3 --vm-bytes 1024m --timeout 60s   
+    # stress --vm 1 --vm-bytes 2g   
     ```
 - HDD 부하   
 stress --hdd (하드 수) -hdd-bytes (크기)   
-예시)   
+예시) HDD 3개를 1024m만큼 부하   
     ```linux
     # stress --hdd 3 --hdd-bytes 1024m --timeout 60s
     ```
-
+## 추가-2   
+> CPU, MEM, Network, DISK 80% 이상 발생 시 event 발생 트리거 생성   
+- Disk Trigger : Template OS Linux ->Discovery rules -> Mounted filesystem discovery의 Trigger prototyles -> "Free disk space is less than 20% on volume {#FSNAME}"란 이름으로 20% 아래일시 알람 뜨게 되어있음.   
+- Network Trigger :  Template OS Linux ->Discovery rules -> Network interface discovery의 Trigger prototypes -> Create trigger prototype 클릭   
+    name : income network traffic over 200Mbps    
+    Expression : {Template OS Linux:net.if.in[{#IFNAME}].avg(5m)}>200M   
+    Severity : Warning
+- Memory Trigger : Template OS Linux -> Trigger    
+    name : Lack of available memory on server {HOST.NAME} 클릭하여 내용 수정      
+    Expression : {Template OS Linux:vm.memory.size[available].last(0)}/{Template OS Linux:vm.memory.size[total].last(0)}*100<20
+- CPU Trigger : Template OS Linux -> Trigger -> Create trigger 클릭   
+    name : CPU less than 20 Trigger   
+    Expression : {Template OS Linux:system.cpu.util[,idle].avg(1m)}<20   
+    Severity : Warning
