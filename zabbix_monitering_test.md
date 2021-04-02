@@ -13,7 +13,8 @@
 ---
 
 ## 1. Zabbix-server 설치(3.x-LTS 버전)
-### 패키지 설치
+### 패키지 설치 
+> 'epel 설치' 또는 '자빅스 저장소 추가' 중 하나만 하고 자빅스 패키지 설치 진행
 - epel 설치
 ```linux
 # yum install epel-release
@@ -22,6 +23,7 @@
 ```linux
 # rpm -ivh http://repo.zabbix.com/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm
 ```
+
 - 자빅스 패키지 설치
 ```linux
 # yum install zabbix-server-mysql zabbix-web-mysql zabbix-agent
@@ -351,39 +353,8 @@ Hostname=ztest1      ->자신의 hostname 입력, 147번째 줄
 192.168.1.223   svr02-m   
 192.168.1.224   svr03-m   
 192.168.1.225   svr04-m   
-- IPMI 모니터링 준비 : IPMI 폴러가 시작되도록 설정   
-```linux
-# vi /etc/zabbix/zabbix_server.conf
-StartIPMIPollers=0 (147번째 줄, 주석 제거 후 3으로 값 변경)
-
-# systemctl restart zabbix-server
-```
-- IPMI 아이템 설정   
-```linux
-# yum install ipmitool
-# ipmitool -U root -H 192.168.1.222 -I lanplus -L user sdr -P calvin
-[root@ztest1 ~]# ipmitool -U root -H 192.168.1.222 -I lanplus -L user sensor get "Inlet Temp" -P calvin
-Locating sensor record...
-Sensor ID              : Inlet Temp (0x5)
- Entity ID             : 7.1
- Sensor Type (Threshold)  : Temperature
- Sensor Reading        : 20 (+/- 1) degrees C
- Status                : ok
- Lower Non-Recoverable : na
- Lower Critical        : -7.000
- Lower Non-Critical    : 3.000
- Upper Non-Critical    : 28.000
- Upper Critical        : 32.000
- Upper Non-Recoverable : na
- Positive Hysteresis   : 2.000
- Negative Hysteresis   : 2.000
- Assertion Events      : 
- Assertions Enabled    : lnc- lcr- unc+ ucr+ 
- Deassertions Enabled  : lnc- lcr- unc+ ucr+
-```
-> U:username, H:IPMI host의 ip입력, P:IPMI 설정에서 설정한 암호 입력   
 - IPMI 모니터링   
-    - 자빅스 서버에서 IPMITOOL 패키지 설치 및 zabbix_server.conf파일 편집   
+    - 자빅스 서버에서 IPMITOOL 패키지 설치 및 IPMI 폴러가 시작되도록 zabbix_server.conf파일 편집   
     ```linux
     # rpm -qa ipmitool   
     ipmitool-1.8.18-9.el7_7.x86_64
@@ -430,6 +401,188 @@ Sensor ID              : Inlet Temp (0x5)
     - Monitering > Graphs로 들어가서 Group : SNMP devices, Host : (원하는목록선택), Graphs : (원하는목록선택) 하면 그래프 볼 수 있음
    ---
 ## 추가-1   
+> CPU/MEM/Network/Disk/App(httpd)상태체크 아이템 및 트리거 만들기   
+기존 템플릿에 등록된 아이템 참조함   
+(덧붙임)하나의 호스트에 기존 템플릿을 추가하여 저장하고, 템플릿에 있는 수많은 아이템, 트리거, 그래프 중 원하는 것들만 선택해서 copy하여 다른 호스트 옮기는 방법이 편리하다.
+이후 추가한 기존 템플릿을 지우고 다른 호스트를 통째로 복사해오면 된다.(기존 템플릿의 정보가 너무 많으므로)
+### CPU
+- CPU idle time
+    - 아이템
+        - Name : CPU $2 time
+        - Key : system.cpu.util[,idle]
+        - Type of information : Numeric (float)
+        - Units : %
+        - Update interval (in sec) : 60
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - Applications : CPU
+- CPU iowait time
+    - 아이템
+        - Name : CPU $2 time
+        - Key : system.cpu.util[,iowait]
+        - Type of information : Numeric (float)
+        - Units : %
+        - 나머지는 위(CPU idle time)와 동일
+    - 트리거
+        - Name : Disk I/O is overloaded on {HOST.NAME}
+        - Expression : {ztest1:system.cpu.util[,iowait].avg(5m)}>20        //여기서 ztest1는 임의의 호스트명
+        - Severity : Warning
+- CPU softirq fime
+    - 아이템
+        - Name : CPU $2 time
+        - Key : system.cpu.util[,softirq]
+        - Type of information : Numeric (float)
+        - Units : %
+        - 나머지는 위(CPU idle time)와 동일
+- CPU system time
+    - 아이템
+        - Name : CPU $2 time
+        - Key : system.cpu.util[,system]
+        - Type of information : Numeric (float)
+        - Units : %
+        - 나머지는 위(CPU idle time)와 동일
+- CPU user time
+    - 아이템
+        - Name : CPU $2 time
+        - Key : system.cpu.util[,user]
+        - Type of information : Numeric (float)
+        - Units : %
+        - 나머지는 위(CPU idle time)와 동일
+- Process load(1 min average per core)
+    - 아이템
+        - Name : Processor load (1 min average per core)
+        - Key : system.cpu.load[percpu,avg1] //숫자는 1,5,15 등으로 변경 가능
+        - Type of information : Numeric (float)
+        - Units : 
+        - 나머지는 위(CPU idle time)와 동일
+    - 트리거
+        - Name : Processor load is too high on {HOST.NAME}
+        - Expression : {ztest1:system.cpu.load[percpu,avg1].avg(5m)}>5        //여기서 ztest1는 임의의 호스트명
+        - Severity : Warning
+### MEM
+- Total memory
+    - 아이템
+        - Name : Total memory
+        - Key : vm.memory.size[total]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - Update interval (in sec) : 3600
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - Applications : Memory
+- Available memory
+    - 아이템
+        - Name : Available memory
+        - Key : vm.memory.size[available]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - 나머지는 위(Total memory)와 동일
+    - 트리거
+        - Name : Lack of available memory on server {HOST.NAME}
+        - Expression : {vm.memory.size[available].last(0)}/{vm.memory.size[total].last(0)}*100<20
+        - Severity : Average
+- Total swap space
+    - 아이템
+        - Name : Total swap space
+        - Key : system.swap.size[,total]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - 나머지는 위(Total memory)와 동일
+- Free swap space
+    - 아이템
+        - Name : Free swap space
+        - Key : system.swap.size[,free]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - 나머지는 위(Total memory)와 동일
+### Network
+- Incoming network traffic on eth0
+    - 아이템
+        - Name : Incoming network traffic on $1
+        - Key : net.if.in[{#IFNAME}]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : bps
+        - Update interval (in sec) : 60
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - Store value : Delta (speed per second)
+        - Applications : Network interfaces
+- Outgoing network traffic on eth0
+    - 아이템
+        - Name : Outgoing network traffic on $1
+        - Key : net.if.out[{#IFNAME}]
+        - 나머지는 위(Incoming network traffic)와 동일
+### Disk
+- Total disk space on /
+    - 아이템
+        - Name : Total disk space on $1
+        - Key : vfs.fs.size[/,total]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - Update interval (in sec) : 3600
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - New applications : Disk
+- Used disk space on /
+    - 아이템
+        - Name : Used disk space on $1
+        - Key : vfs.fs.size[/,used]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - Update interval (in sec) : 60
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - Applications : Disk
+- Free disk space on /
+    - 아이템
+        - Name : Free disk space on $1
+        - Key : vfs.fs.size[/,free]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : B
+        - Update interval (in sec) : 60
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - Applications : Disk
+### App(httpd) 상태 체크
+- HTTP service is running
+    - 아이템
+        - Name : HTTP service is running
+        - Type : Simple check
+        - key : net.tcp.service[http]
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : 
+        - Update interval (in sec) : 60
+        - History storage period (in days) : 7
+        - Trend storage period (in days) : 365
+        - New applications : HTTP service
+### (추가) General
+- Host name
+    - 아이템
+        - Name : Host name
+        - key : system.hostname
+        - Type of information : Character
+        - Update interval (in sec) : 3600
+        - History storage period (in days) : 7
+        - Applications : General
+- System uptime
+    - 아이템
+        - Name : System uptime
+        - key : system.uptime
+        - Type of information : Numeric (unsigned))
+        - Data type : Decimal
+        - Units : uptime
+        - Update interval (in sec) : 600
+        - Applications : General
+## 추가-2   
 > 부하발생 명령어 stress 이용   
 - 설치 방법(yum 설치)
     ```linux
@@ -454,8 +607,8 @@ stress --hdd (하드 수) -hdd-bytes (크기)
     ```linux
     # stress --hdd 3 --hdd-bytes 1024m --timeout 60s
     ```
-## 추가-2   
-> CPU, MEM, Network, DISK 80% 이상 발생 시 event 발생 트리거 생성   
+## 추가-3   
+> CPU, MEM, Network, DISK 80% 이상 발생 시 event 발생 트리거 생성하는 방법   
 - Disk Trigger : Template OS Linux ->Discovery rules -> Mounted filesystem discovery의 Trigger prototyles -> "Free disk space is less than 20% on volume {#FSNAME}"란 이름으로 20% 아래일시 알람 뜨게 되어있음.   
 - Network Trigger :  Template OS Linux ->Discovery rules -> Network interface discovery의 Trigger prototypes -> Create trigger prototype 클릭   
     name : income network traffic over 200Mbps    
@@ -468,3 +621,49 @@ stress --hdd (하드 수) -hdd-bytes (크기)
     name : CPU less than 20 Trigger   
     Expression : {Template OS Linux:system.cpu.util[,idle].avg(1m)}<20   
     Severity : Warning
+## 추가-4   
+> Zabbix Email 알림 설정   
+1. 외부 STMP 서버 연동 (예시, 여기서는 네이버 STMP 서버 사용)   
+ - STMP 활성화   
+    - 네이버 로그인 후 메일로 이동   
+    - 좌측 하단 '환경설정' 이동   
+    - 메일 자동 분류의 'POP3/IMAP 설정' 클릭 -> 'IMAP/SMTP 설정' 클릭
+    - IMAP/SMTP 사용 -> 사용함으로 체크하고 확인   
+    +)하단 내용 체크   
+        - IMAP 서버명 : imap.naver.com
+        - SMTP 서버명 : smtp.naver.com
+        - IMAP 포트 : 993, 보안연결(SSL) 필요
+        - SMTP 포트 : 587, 보안 연결(TLS) 필요
+        - 아이디 : (현재 로그인한 네이버 아이디)
+        - 비밀번호 : 네이버 로그인 비밀번호
+2. Zabbix Media types 변경
+ - 자빅스 웹사이트에서 Administration -> Media types 이동, 목록 중 Email 클릭    
+ - STMP 서버 정보 입력   
+    - Name : testmail (임의 설정)
+    - SMTP server : smtp.naver.com
+    - SMTP server port : 465
+    - SMTP helo : smtp.naver.com
+    - SMTP email : (설정한네이버아이디)@naver.com
+    - Connection security : SSL/TLS 선택
+    - Authentication : Username and password 선택
+    - Username과 Password에 네이버 아이디, 비밀번호 입력
+    - 입력 후 Update 클릭
+3. User Send to 등록
+- 자빅스 웹사이트에서 Administration -> User 이동, Admin 클릭
+- 상단에 Media 클릭 후 Add 선택
+    - Type : testmail(위에 Media type에서 설정한 이름 선택)
+    - Send to : (메일 받을 이메일 주소 입력)
+    - When active : 1-7,00:00-24:00   
+    (메일 허용 시간대 설정, 1[Mon]-7[Sun])
+    - Use if severity : 심각도 선택(임의)
+    - Add 클릭   
+4. 테스트
+- 자빅스 웹사이트에서 Configuration -> Hosts -> Create host 클릭 
+- Host 설정  
+    - Host name : 5.5.5.5
+    - Groups : (아무거나 임의로 설정)
+    - Agent interfaces : 5.5.5.5
+- Templates 설정 : Template ICMP Ping 선택 후 Add
+- Dashboard 초기화면에서 약 3분 정도 대기하면 ICMP 에러 발생하면서 발송된 이메일 확인 가능
+
+
