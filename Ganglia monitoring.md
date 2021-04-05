@@ -1,4 +1,4 @@
-# Ganglia monitering 구축
+# Ganglia monitoring 구축
 - ganglia master 서버 (web, 수집) : 1대(gmetad, gmond)
 - gnaglia client (모니터링 대상) : 그 외(gmond)
 - 구성도   
