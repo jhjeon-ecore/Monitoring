@@ -88,6 +88,7 @@ Install  3 Packages (+37 Dependent packages)
     DBName -> zabbix   
     DBUser -> zabbix  
     DBPassword -> DB에서 사용할 암호 입력  (1234로 설정함)
+> DBName은 zabbix로 고정 DBUser는 root로 설정되어있으나 임의설정 가능
 ```linux
 # vi /etc/zabbix/zabbix_server.conf
 ### Option: DBName
@@ -140,12 +141,13 @@ Bye
 > 1234는 DBPassword에 설정한 비밀번호와 동일하게 입력  
 > 생성된 db에 자빅스 스키마와 초기 데이터를 import
 ```linux
-# zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -u zabbix -p zabbix
+# zcat /usr/share/doc/zabbix-server-mysql-3.0.31/create.sql.gz | mysql -u zabbix -p zabbix
+Enter password:           //기존에 설정한 비밀번호 1234 입력
 ```
 ### 실행
 자빅스 실행할 계정 생성 및 패키지 실행
 ```linux
-# useradd -m -s /bin/bash zabbix
+# useradd -m -s /bin/bash zabbix     //생략가능
 # systemctl restart zabbix-server zabbix-agent httpd
 # systemctl enble zabbix-server zabbix-agent httpd
 ```
@@ -404,7 +406,7 @@ Hostname=ztest1      ->자신의 hostname 입력, 147번째 줄
 > CPU/MEM/Network/Disk/App(httpd)상태체크 아이템 및 트리거 만들기   
 기존 템플릿에 등록된 아이템 참조함   
 (덧붙임)하나의 호스트에 기존 템플릿을 추가하여 저장하고, 템플릿에 있는 수많은 아이템, 트리거, 그래프 중 원하는 것들만 선택해서 copy하여 다른 호스트 옮기는 방법이 편리하다.
-이후 추가한 기존 템플릿을 지우고 다른 호스트를 통째로 복사해오면 된다.(기존 템플릿의 정보가 너무 많으므로)
+이후 추가한 기존 템플릿을 지우고 다른 호스트를 통째로 복사해오면 된다. (기존 템플릿의 정보가 너무 많으므로)
 ### CPU
 - CPU idle time
     - 아이템
